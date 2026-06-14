@@ -349,23 +349,23 @@ display:
           "YEAH?",
           "GO AHEAD",
           "WHAT'S UP?",
-          "SPEAK",
-          "READY",
+          "SPEAK UP",
+          "I'M ALL EARS",
           "ONLINE",
           "LISTENING",
           "AWAITING",
           "YES?",
           "TELL ME",
-          "USE WORDS",
+          "STANDBY",
           "ENGAGED",
           "RECEIVING",
           "GO ON",
           "I'M HERE",
           "INPUT?",
           "HEY?",
-          "YOUR TURN",
+          "TUNED IN",
           "UGH, WHAT?",
-          "FINE..."
+          "ACTIVE"
         };
         it.printf(64, 24, id(font_large), TextAlign::CENTER, listening[id(listening_phrase)]);
       } else if (id(va_state) == "thinking") {
@@ -388,9 +388,9 @@ display:
           "HOLD ON",
           "ALMOST...",
           "HMMM...",
-          "UNDERSTOOD",
-          "GOOGLING",
-          "READING"
+          "CRUNCHING",
+          "REASONING",
+          "PARSING"
         };
         it.printf(64, 24, id(font_large), TextAlign::CENTER, thinking[id(thinking_phrase)]);
       } else if (id(va_state) == "responding") {
@@ -399,7 +399,7 @@ display:
           "RESPONDING",
           "FOUND IT",
           "HERE YA GO",
-          "SERVING UP",
+          "HERE IT IS",
           "LISTEN UP",
           "ROGER",
           "TRANSMIT",
@@ -410,12 +410,12 @@ display:
           "DONE",
           "THERE IT IS",
           "THAT'S IT",
-          "ANSWERING",
+          "REPLYING",
           "ALL SET",
           "NO PROBLEM",
-          "YOU BETCHA",
+          "YOU BET",
           "ENJOY",
-          "HOPE IT HELPS"
+          "ON THE AIR"
         };
         it.printf(64, 24, id(font_large), TextAlign::CENTER, responding[id(responding_phrase)]);
       } else if (id(co2).state >= id(co2_warning_threshold)) {
@@ -427,7 +427,12 @@ display:
           it.printf(64, 24, id(font_large), TextAlign::CENTER, "CO2 HIGH");
         }
       } else {
-        it.strftime(64, 10, id(font1), TextAlign::CENTER, "%I:%M %p", id(ha_time).now());
+        auto now = id(ha_time).now();
+        if (now.is_valid()) {
+          it.strftime(64, 10, id(font1), TextAlign::CENTER, "%I:%M %p", now);
+        } else {
+          it.printf(64, 10, id(font1), TextAlign::CENTER, "--:-- --");
+        }
         it.printf(64, 30, id(font1), TextAlign::CENTER, "Room Temp: %.1fF", id(room_temp).state * 1.8 + 32);
         it.printf(127, 52, id(font_small), TextAlign::RIGHT, "H:%.0f%%  CO2:%4.0fppm", id(room_humidity).state, id(co2).state);
       }
