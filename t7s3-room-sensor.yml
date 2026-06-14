@@ -1,0 +1,251 @@
+esphome:
+  name: t7s3-room-sensor
+  friendly_name: t7s3-room-sensor
+  platformio_options:
+    build_flags:
+      - "-Wno-shadow"
+      - "-Wno-error=shadow"
+  on_boot:
+    - priority: -100
+      then:
+        - delay: 5s
+        - wait_until:
+            api.connected:
+        - delay: 1s
+        - micro_wake_word.start:
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+      CONFIG_SPIRAM_SPEED_80M: "y"
+      CONFIG_ESPTOOLPY_FLASHMODE_QIO: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  hardware_uart: UART0
+  level: INFO
+
+api:
+  encryption:
+    key: "YOUR_BASE64_API_KEY"
+
+ota:
+  platform: esphome
+  password: "YOUR_OTA_PASSWORD"
+
+wifi:
+  ssid: "YOUR_WIFI_SSID"
+  password: "YOUR_WIFI_PASSWORD"
+  fast_connect: true
+  power_save_mode: none
+  ap:
+    ssid: "t7s3-fallback"
+    password: "fallback123"
+
+captive_portal:
+
+# ============================================================
+# TIME
+# ============================================================
+time:
+  - platform: homeassistant
+    id: ha_time
+
+# ============================================================
+# I2C — OLED + SCD40
+# SDA: GPIO18  SCL: GPIO14
+# ============================================================
+i2c:
+  sda: 18
+  scl: 14
+  scan: true
+
+# ============================================================
+# I2S — Separate buses for mic and speaker
+# Mic:  WS=GPIO15  BCLK=GPIO16  SD=GPIO8
+# Spk:  LRC=GPIO5  BCLK=GPIO10  DIN=GPIO7
+# ============================================================
+i2s_audio:
+  - id: i2s_mic
+    i2s_lrclk_pin: GPIO15
+    i2s_bclk_pin: GPIO16
+  - id: i2s_spk
+    i2s_lrclk_pin: GPIO5
+    i2s_bclk_pin: GPIO10
+
+microphone:
+  - platform: i2s_audio
+    id: va_mic
+    i2s_audio_id: i2s_mic
+    i2s_din_pin: GPIO8
+    adc_type: external
+    pdm: false
+    channel: left
+
+speaker:
+  - platform: i2s_audio
+    id: va_speaker
+    i2s_audio_id: i2s_spk
+    i2s_dout_pin: GPIO7
+    dac_type: external
+    i2s_mode: primary
+    buffer_duration: 500ms
+
+# ============================================================
+# WAKE WORD
+# ============================================================
+micro_wake_word:
+  vad:
+  models:
+    - model: github://esphome/micro-wake-word-models/models/v2/hey_jarvis.json@main
+  on_wake_word_detected:
+    - voice_assistant.start:
+
+# ============================================================
+# VOICE ASSISTANT
+# ============================================================
+globals:
+  - id: va_state
+    type: std::string
+    restore_value: no
+    initial_value: '"idle"'
+  - id: responding_timer
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+script:
+  - id: hold_responding
+    mode: restart
+    then:
+      - delay: 4s
+      - globals.set:
+          id: va_state
+          value: '"idle"'
+      - component.update: oled
+
+voice_assistant:
+  id: va
+  microphone: va_mic
+  speaker: va_speaker
+  noise_suppression_level: 1
+  auto_gain: 20dBFS
+  volume_multiplier: 2.0
+  on_start:
+    - globals.set:
+        id: va_state
+        value: '"listening"'
+    - component.update: oled
+  on_listening:
+    - globals.set:
+        id: va_state
+        value: '"listening"'
+    - component.update: oled
+  on_stt_end:
+    - globals.set:
+        id: va_state
+        value: '"processing"'
+    - component.update: oled
+  on_tts_start:
+    - globals.set:
+        id: va_state
+        value: '"responding"'
+    - component.update: oled
+    - globals.set:
+        id: responding_timer
+        value: '5'
+  on_tts_end:
+    - script.execute: hold_responding
+  on_end:
+    - delay: 50ms
+    - micro_wake_word.start:
+  on_error:
+    - globals.set:
+        id: va_state
+        value: '"idle"'
+    - component.update: oled
+    - delay: 2s
+    - micro_wake_word.start:
+
+# ============================================================
+# SENSORS
+# ============================================================
+sensor:
+  - platform: scd4x
+    co2:
+      name: "Room CO2"
+      id: co2
+    temperature:
+      name: "Room Temperature"
+      id: room_temp
+    humidity:
+      name: "Room Humidity"
+      id: room_humidity
+  - platform: uptime
+    name: "Uptime"
+  - platform: wifi_signal
+    name: "WiFi RSSI"
+    update_interval: 60s
+
+binary_sensor:
+  - platform: status
+    name: "Online"
+
+# ============================================================
+# BOARD LED (GPIO17)
+# ============================================================
+output:
+  - platform: gpio
+    pin: GPIO17
+    id: board_led
+    inverted: false
+
+switch:
+  - platform: output
+    name: "Board LED"
+    output: board_led
+    restore_mode: ALWAYS_OFF
+
+# ============================================================
+# DISPLAY — SSD1309 2.42" 128x64 I2C
+# Shows voice assistant state or sensor readings when idle
+# ============================================================
+font:
+  - file: "gfonts://Roboto"
+    id: font1
+    size: 14
+  - file: "gfonts://Roboto"
+    id: font_large
+    size: 20
+
+display:
+  - platform: ssd1306_i2c
+    id: oled
+    model: "SSD1306 128x64"
+    address: 0x3C
+    lambda: |-
+      if (id(va_state) == "listening") {
+        it.fill(COLOR_OFF);
+        it.printf(64, 24, id(font_large), TextAlign::CENTER, "LISTENING");
+      } else if (id(va_state) == "processing") {
+        it.fill(COLOR_OFF);
+        it.printf(64, 24, id(font_large), TextAlign::CENTER, "PROCESSING");
+      } else if (id(va_state) == "responding") {
+        it.fill(COLOR_OFF);
+        it.printf(64, 24, id(font_large), TextAlign::CENTER, "RESPONDING");
+      } else {
+        it.strftime(64, 10, id(font1), TextAlign::CENTER, "%I:%M %p", id(ha_time).now());
+        it.printf(64, 30, id(font1), TextAlign::CENTER, "Tmp: %.1fF", id(room_temp).state * 1.8 + 32);
+        it.printf(64, 50, id(font1), TextAlign::CENTER, "Hum: %.0f%%", id(room_humidity).state);
+      }

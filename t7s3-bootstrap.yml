@@ -1,0 +1,27 @@
+esphome:
+  name: t7s3-room-sensor
+  platformio_options:
+    board_build.flash_mode: dio
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: arduino
+
+wifi:
+  ssid: "YOUR_WIFI_SSID"
+  password: "YOUR_WIFI_PASSWORD"
+  ap:
+    ssid: "t7s3-fallback"
+    password: "fallback123"
+
+api:
+  encryption:
+    key: "YOUR_BASE64_API_KEY"
+
+ota:
+  platform: esphome
+  password: "YOUR_OTA_PASSWORD"
+
+logger:
