@@ -1,6 +1,6 @@
 esphome:
-  name: t7s3-room-sensor
-  friendly_name: t7s3-room-sensor
+  name: MiniSense-T7S3
+  friendly_name: MiniSense-T7S3
   platformio_options:
     build_flags:
       - "-Wno-shadow"
@@ -51,31 +51,25 @@ wifi:
   power_save_mode: none
   ap:
     ssid: "t7s3-fallback"
-    password: "fallback123"
+    password: "password123"
 
 captive_portal:
 
-# ============================================================
-# TIME
-# ============================================================
-time:
-  - platform: homeassistant
-    id: ha_time
+globals:
+  - id: va_state
+    type: std::string
+    restore_value: no
+    initial_value: '"idle"'
+  - id: responding_timer
+    type: int
+    restore_value: no
+    initial_value: '0'
 
-# ============================================================
-# I2C — OLED + SCD40
-# SDA: GPIO18  SCL: GPIO14
-# ============================================================
 i2c:
   sda: 18
   scl: 14
   scan: true
 
-# ============================================================
-# I2S — Separate buses for mic and speaker
-# Mic:  WS=GPIO15  BCLK=GPIO16  SD=GPIO8
-# Spk:  LRC=GPIO5  BCLK=GPIO10  DIN=GPIO7
-# ============================================================
 i2s_audio:
   - id: i2s_mic
     i2s_lrclk_pin: GPIO15
@@ -102,38 +96,12 @@ speaker:
     i2s_mode: primary
     buffer_duration: 500ms
 
-# ============================================================
-# WAKE WORD
-# ============================================================
 micro_wake_word:
   vad:
   models:
     - model: github://esphome/micro-wake-word-models/models/v2/hey_jarvis.json@main
   on_wake_word_detected:
     - voice_assistant.start:
-
-# ============================================================
-# VOICE ASSISTANT
-# ============================================================
-globals:
-  - id: va_state
-    type: std::string
-    restore_value: no
-    initial_value: '"idle"'
-  - id: responding_timer
-    type: int
-    restore_value: no
-    initial_value: '0'
-
-script:
-  - id: hold_responding
-    mode: restart
-    then:
-      - delay: 4s
-      - globals.set:
-          id: va_state
-          value: '"idle"'
-      - component.update: oled
 
 voice_assistant:
   id: va
@@ -178,9 +146,28 @@ voice_assistant:
     - delay: 2s
     - micro_wake_word.start:
 
-# ============================================================
-# SENSORS
-# ============================================================
+script:
+  - id: hold_responding
+    mode: restart
+    then:
+      - delay: 4s
+      - globals.set:
+          id: va_state
+          value: '"idle"'
+      - component.update: oled
+
+output:
+  - platform: gpio
+    pin: GPIO17
+    id: board_led
+    inverted: false
+
+switch:
+  - platform: output
+    name: "Board LED"
+    output: board_led
+    restore_mode: ALWAYS_OFF
+
 sensor:
   - platform: scd4x
     co2:
@@ -196,31 +183,17 @@ sensor:
     name: "Uptime"
   - platform: wifi_signal
     name: "WiFi RSSI"
+    id: wifi_rssi
     update_interval: 60s
 
 binary_sensor:
   - platform: status
     name: "Online"
 
-# ============================================================
-# BOARD LED (GPIO17)
-# ============================================================
-output:
-  - platform: gpio
-    pin: GPIO17
-    id: board_led
-    inverted: false
+time:
+  - platform: homeassistant
+    id: ha_time
 
-switch:
-  - platform: output
-    name: "Board LED"
-    output: board_led
-    restore_mode: ALWAYS_OFF
-
-# ============================================================
-# DISPLAY — SSD1309 2.42" 128x64 I2C
-# Shows voice assistant state or sensor readings when idle
-# ============================================================
 font:
   - file: "gfonts://Roboto"
     id: font1
@@ -228,12 +201,18 @@ font:
   - file: "gfonts://Roboto"
     id: font_large
     size: 20
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 10
 
 display:
   - platform: ssd1306_i2c
     id: oled
     model: "SSD1306 128x64"
     address: 0x3C
+    offset_x: 0
+    offset_y: 0
+    rotation: 0°
     lambda: |-
       if (id(va_state) == "listening") {
         it.fill(COLOR_OFF);
@@ -246,6 +225,22 @@ display:
         it.printf(64, 24, id(font_large), TextAlign::CENTER, "RESPONDING");
       } else {
         it.strftime(64, 10, id(font1), TextAlign::CENTER, "%I:%M %p", id(ha_time).now());
-        it.printf(64, 30, id(font1), TextAlign::CENTER, "Tmp: %.1fF", id(room_temp).state * 1.8 + 32);
-        it.printf(64, 50, id(font1), TextAlign::CENTER, "Hum: %.0f%%", id(room_humidity).state);
+        it.printf(64, 30, id(font1), TextAlign::CENTER, "Room Temp: %.1fF", id(room_temp).state * 1.8 + 32);
+        it.printf(127, 52, id(font_small), TextAlign::RIGHT, "H:%.0f%%  CO2:%4.0fppm", id(room_humidity).state, id(co2).state);
+      }
+      int rssi = (int)id(wifi_rssi).state;
+      int bars = 0;
+      if (rssi > -50) bars = 4;
+      else if (rssi > -60) bars = 3;
+      else if (rssi > -70) bars = 2;
+      else if (rssi > -80) bars = 1;
+      for (int i = 0; i < 4; i++) {
+        int bar_height = (i + 1) * 3;
+        int x = 110 + (i * 5);
+        int y = 10 - bar_height;
+        if (i < bars) {
+          it.filled_rectangle(x, y, 4, bar_height);
+        } else {
+          it.rectangle(x, y, 4, bar_height);
+        }
       }
