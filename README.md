@@ -28,6 +28,7 @@ Ollama/Open WebUI local AI stack.
 - Hey Jarvis wake word (on-device, no cloud)
 - Voice assistant via Home Assistant
 - Live OLED display — shows listening / thinking / responding states during voice interaction
+- Random phrases for each voice state — 20 options per state, picked at transition and held for duration
 - Idle display shows time, room temperature, humidity, CO2, and WiFi signal bars
 - CO2 warning — display flashes when threshold is exceeded (default 1000ppm)
 - SCD40 sensors reported to Home Assistant
@@ -129,11 +130,11 @@ No `--device` needed after first flash — updates over WiFi.
 
 ## Voice Assistant States
 
-The OLED display takes over with large centered text during voice interaction:
+The OLED display takes over with large centered text during voice interaction. Each state picks randomly from 20 phrases at transition time and holds it for the duration of the state — keeping interactions fresh without flickering.
 
-- **LISTENING** — wake word detected, mic active
-- **THINKING** — speech received, waiting on response from Home Assistant
-- **RESPONDING** — TTS playing (held on screen for 4 seconds)
+- **LISTENING** — wake word detected, mic active (e.g. "YEAH?", "GO AHEAD", "I'M HERE")
+- **THINKING** — speech received, waiting on response from Home Assistant (e.g. "ON IT", "HMMM...", "BRAIN HURTS")
+- **RESPONDING** — TTS playing, held on screen for 4 seconds (e.g. "BOOM", "HERE YA GO", "HOPE SO")
 - **CO2 HIGH** — flashes when CO2 exceeds threshold, overrides idle display
 - **Idle** — displays time, room temperature, humidity and CO2 in small text, WiFi signal bars in top right corner
 
