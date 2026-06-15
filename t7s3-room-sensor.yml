@@ -278,9 +278,12 @@ switch:
 # SENSORS
 # SCD40 reports to Home Assistant every ~5 seconds (default)
 # Allow 3 minutes after boot for first CO2 measurement
+# temperature_offset: tested at 0 for this enclosure — self-heating negligible
+# Adjust if readings drift from a known reference
 # ============================================================
 sensor:
   - platform: scd4x
+    temperature_offset: 0
     co2:
       name: "Room CO2"
       id: co2
