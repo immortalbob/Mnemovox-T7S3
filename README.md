@@ -154,9 +154,11 @@ The warning threshold is set via the `co2_warning_threshold` global at the top o
 
 ### mmWave Presence Detection
 
-Planned addition: DFRobot Fermion C4002 mmWave Human Presence Sensor for true presence detection (not just motion). Detects static presence up to 10m and motion up to 11m using 24GHz FMCW radar. Includes an integrated ambient light sensor (0-50 lux) enabling condition-based automations without a separate light sensor.
+Planned addition: DFRobot Fermion C4002 mmWave Human Presence Sensor for true presence detection (not just motion). Detects static presence up to 10m and motion up to 11m using 24GHz FMCW radar. Includes an integrated ambient light sensor (0-50 lux) enabling condition-based automations without a separate light sensor. Built-in adaptive noise filtering ignores ceiling fans, curtains, and plants.
 
-Native ESPHome support with verified YAML provided by DFRobot.
+Uses a DFRobot external ESPHome component — not a native ESPHome platform.
+
+**Important:** After first boot or reset, leave the room within 10 seconds and wait 40 seconds for ambient noise calibration.
 
 **Additional pin assignments:**
 
@@ -167,10 +169,51 @@ Native ESPHome support with verified YAML provided by DFRobot.
 | 13 | C4002 | RX |
 | 12 | C4002 | TX |
 
-**Config changes required:**
-- Add `uart:` block with `tx_pin: 13`, `rx_pin: 12`, baud rate per DFRobot ESPHome guide
-- Add C4002 sensor platform block per DFRobot verified YAML
-- Add binary sensors for presence and motion detection
-- Add sensor for detection distance and illuminance
+**Config blocks required:**
+
+```yaml
+external_components:
+  - source:
+      type: git
+      url: https://github.com/cdjq/esphome.git
+      ref: dev
+    components:
+      - dfrobot_c4002
+    refresh: 0s
+
+uart:
+  id: uart_bus
+  tx_pin: GPIO13
+  rx_pin: GPIO12
+  baud_rate: 115200
+
+dfrobot_c4002:
+  id: my_c4002
+  uart_id: uart_bus
+
+sensor:
+  - platform: dfrobot_c4002
+    c4002_id: my_c4002
+    movement_distance:
+      name: "Motion Distance"
+      id: movement_distance_sensor
+      unit_of_measurement: "m"
+      accuracy_decimals: 2
+    existing_distance:
+      name: "Presence Distance"
+      id: existing_distance_sensor
+      unit_of_measurement: "m"
+      accuracy_decimals: 2
+    movement_speed:
+      name: "Motion Speed"
+      id: movement_speed_sensor
+    movement_direction:
+      name: "Motion Direction"
+      id: movement_direction_sensor
+```
+
+**Additional config changes:**
 - Add presence indicator to OLED display (top left corner)
+- Add binary sensor for occupied/vacant derived from `existing_distance`
+- Confirm illuminance sensor availability in ESPHome component (may be Arduino only)
 - Update repo topics to include `c4002`, `mmwave`, and `presence-detection`
