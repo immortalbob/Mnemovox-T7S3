@@ -154,9 +154,9 @@ The warning threshold is set via the `co2_warning_threshold` global at the top o
 
 ### mmWave Presence Detection
 
-Planned addition: DFRobot Fermion C4002 mmWave Human Presence Sensor for true presence detection (not just motion). Detects static presence up to 10m and motion up to 11m using 24GHz FMCW radar. Includes an integrated ambient light sensor (0-50 lux) enabling condition-based automations without a separate light sensor. Built-in adaptive noise filtering ignores ceiling fans, curtains, and plants.
+Planned addition: DFRobot Fermion C4002 mmWave Human Presence Sensor for true presence detection (not just motion). Detects static presence up to 10m and motion up to 11m using 24GHz FMCW radar. Built-in adaptive noise filtering ignores ceiling fans, curtains, and plants.
 
-Uses a DFRobot external ESPHome component — not a native ESPHome platform.
+Uses a DFRobot external ESPHome component — not a native ESPHome platform. Source: https://github.com/cdjq/Home_Assistant_C4002
 
 **Important:** After first boot or reset, leave the room within 10 seconds and wait 40 seconds for ambient noise calibration.
 
@@ -210,10 +210,81 @@ sensor:
     movement_direction:
       name: "Motion Direction"
       id: movement_direction_sensor
+      internal: true
+    target_status:
+      name: "Target Status"
+      id: target_status_sensor
+      internal: true
+
+text_sensor:
+  - platform: template
+    name: "Movement Direction"
+    lambda: |-
+      int d = id(movement_direction_sensor).state;
+      if (d == 0) return {"Away"};
+      else if (d == 1) return {"No Direction"};
+      else if (d == 2) return {"Approaching"};
+      else return {"Unknown"};
+    update_interval: 1s
+  - platform: template
+    name: "Target Status"
+    lambda: |-
+      int d = id(target_status_sensor).state;
+      if (d == 0) return {"No Target"};
+      else if (d == 1) return {"Static Presence"};
+      else if (d == 2) return {"Motion"};
+      else return {"Unknown"};
+    update_interval: 0.5s
+
+switch:
+  - platform: dfrobot_c4002
+    switch_factory_reset:
+      name: "Factory Reset"
+    switch_environmental_calibration:
+      name: "Sensor Calibration"
+
+select:
+  - platform: dfrobot_c4002
+    c4002_id: my_c4002
+    operating_mode:
+      name: "OUT Mode"
+      options:
+        - "Mode_1"
+        - "Mode_2"
+        - "Mode_3"
+
+# Uncomment to configure detection zones, range, and light threshold
+# number:
+#   - platform: dfrobot_c4002
+#     max_range:
+#       name: "Max detection distance"
+#     min_range:
+#       name: "Min detection distance"
+#     light_threshold:
+#       name: "Light Threshold"
+#     area1_min:
+#       name: "Area 1 Excluded Range Min"
+#     area1_max:
+#       name: "Area 1 Excluded Range Max"
+#     target_disappeard_delay_time:
+#       name: "Target Disappear Delay Time"
 ```
+
+**Available sensors:**
+- `movement_distance` — distance to moving target in meters
+- `existing_distance` — distance to static target in meters
+- `movement_speed` — speed of moving target
+- `movement_direction` — Away / No Direction / Approaching
+- `target_status` — No Target / Static Presence / Motion
+
+**Available controls:**
+- Factory Reset
+- Environmental Calibration — triggers noise learning
+- OUT Mode — Mode 1/2/3 (sensitivity/range presets)
+- Configurable min/max detection range and exclusion zones (commented out, enable as needed)
+- Light threshold configurable (lux sensor accessible via the number platform)
 
 **Additional config changes:**
 - Add presence indicator to OLED display (top left corner)
-- Add binary sensor for occupied/vacant derived from `existing_distance`
-- Confirm illuminance sensor availability in ESPHome component (may be Arduino only)
+- Add binary sensor for occupied/vacant derived from `target_status`
 - Update repo topics to include `c4002`, `mmwave`, and `presence-detection`
