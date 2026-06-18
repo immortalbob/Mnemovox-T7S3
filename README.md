@@ -319,7 +319,7 @@ select:
 - Update repo topics to include `c4002`, `mmwave`, and `presence-detection`
 
   
-## Part of the MiniNet stack
+## Part of the Mnemo-Net stack
 
-- [MiniSearch](https://github.com/immortalbob/MiniSearch) — unified local knowledge search API
-- [MiniSearch Intents](https://github.com/immortalbob/minisearch_intents) — native Home Assistant LLM integration for MiniSearch
+- [Mnemolis](https://github.com/immortalbob/Mnemolis) — unified local knowledge search API
+- [Mnemolis Intents](https://github.com/immortalbob/Mnemolis_Intents) — native Home Assistant LLM integration for MiniSearch
