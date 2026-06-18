@@ -1,4 +1,4 @@
-# MiniSense-T7S3
+# Mnemovox-T7S3
 
 An ESPHome-based room sensor node built on the LilyGo T7-S3 (ESP32-S3). Combines CO2, 
 temperature, and humidity monitoring with a fully local voice assistant pipeline using 
